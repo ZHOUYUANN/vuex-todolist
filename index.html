@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+    }
+
+    #app {
+      width: 700px;
+      margin: 200px auto;
+      box-shadow: 0 0 5px #666;
+      color: #666
+    }
+
+    .add {
+      position: relative;
+    }
+
+    .add-btn {
+      position: absolute;
+      top: 0;
+      right: 0;
+      display: inline-block;
+      padding: 14px 24px;
+      font-size: 26px;
+      line-height: 1.4em;
+      cursor: pointer;
+    }
+
+    .add-btn:active {
+      background: #f4f4f4;
+    }
+
+    .add-input {
+      position: relative;
+      margin: 0;
+      width: 100%;
+      font-size: 24px;
+      font-family: inherit;
+      font-weight: inherit;
+      line-height: 1.4em;
+      border: 0;
+      outline: none;
+      color: inherit;
+      box-sizing: border-box;
+      padding: 16px 16px 16px 36px;
+      box-shadow: inset 0 -2px 1px rgba(0, 0, 0, 0.03);
+    }
+
+    .todo-item {
+      position: relative;
+      background: #fff;
+      font-size: 24px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .todo-item:hover .destroy:after {
+      content: '×'
+    }
+
+    .todo-item label {
+      white-space: pre-line;
+      word-break: break-all;
+      padding: 15px 60px 15px 15px;
+      margin-left: 45px;
+      display: block;
+      line-height: 1.2;
+      transition: color 0.4s;
+      color: #333;
+    }
+
+    .todo-item.completed label {
+      color: #d9d9d9;
+      text-decoration: line-through;
+    }
+
+    .toggle {
+      text-align: center;
+      width: 40px;
+      height: 40px;
+      line-height: 40px;
+      position: absolute;
+      top: 0;
+      left: 10px;
+      bottom: 0;
+      margin: auto 0;
+      border: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      outline: none;
+      padding-left: 5px;
+      cursor: pointer;
+    }
+
+    .toggle:after {
+      content: url('./round.svg')
+    }
+
+    .toggle:checked:after {
+      content: url('./done.svg')
+    }
+
+    .destroy {
+      position: absolute;
+      top: 0;
+      right: 10px;
+      bottom: 0;
+      width: 40px;
+      height: 40px;
+      margin: auto 0;
+      font-size: 30px;
+      color: #cc9a9a;
+      transition: color 0.2s ease-out;
+      background-color: transparent;
+      appearance: none;
+      border-width: 0;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .helper {
+      font-weight: 100;
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      line-height: 30px;
+      background-color: #ffffff;
+      font-size: 14px;
+      font-smoothing: antialiased;
+    }
+
+    .left, .clear, .tabs {
+      padding: 0 10px;
+      box-sizing: border-box;
+      font-weight: bold;
+    }
+
+    .left, .clear {
+      width: 150px;
+    }
+
+    .left {
+      text-align: left;
+    }
+
+    .clear {
+      text-align: right;
+      cursor: pointer;
+    }
+
+    .tabs {
+      width: 200px;
+      display: flex;
+      justify-content: space-around;
+    }
+
+    .tabs span {
+      display: inline-block;
+      padding: 0 10px;
+      cursor: pointer;
+      border: 1px solid rgba(175, 47, 47, 0);
+    }
+
+    .tabs span.active {
+      border-color: rgba(175, 47, 47, 0.4);
+      border-radius: 5px;
+    }
+  </style>
+
+</head>
+<body>
+<div id="app">
+  <div class="add">
+    <input
+      type="text"
+      class="add-input"
+      autofocus="autofocus"
+      placeholder="接下来做什么?"
+      v-model="message"
+    >
+    <span class="add-btn" @click="addTodo">+</span>
+  </div>
+  <div class="content">
+    <div class="todo-item"
+         :class="[list.completed ? 'completed' : '']"
+         v-for="(list, index) in listGetters"
+         :key="index"
+    >
+      <input type="checkbox" class="toggle" v-model="list.completed"/>
+      <label>{{list.text}}</label>
+      <button class="destroy" :data-id="list.id" @click="deleteTodo"></button>
+    </div>
+  </div>
+  <div class="helper">
+    <span class="left">{{unfinishedTodoLength}} items left</span>
+    <span class="tabs">
+        <span
+          class="state"
+          :class="[filter === state ? 'active' : '']"
+          v-for="(state, index) in states"
+          :key="index"
+          @click="toggleFilter(state)"
+        >
+          {{state}}
+        </span>
+      </span>
+    <span class="clear" @click="clearAllCompleted">clear Completed</span>
+  </div>
+</div>
+<script src="vue.js"></script>
+<script src="vuex.js"></script>
+<script>
+  var id = -1
+  var store = new Vuex.Store({
+    state: {
+      lists: [],
+      filter: 'all'
+    },
+    mutations: {
+      SET_MESSAGE_VALUE: function (state, newState) {
+        state.lists.unshift(newState)
+      },
+      DEL_LIST_VALUE: function (state, newState) {
+        state.lists.splice(state.lists.findIndex(function (list) {
+          return list.id === newState
+        }), 1)
+      },
+      SET_FILTER_VALUE: function (state, newState) {
+        state.filter = newState
+      },
+      DEL_COM_LIST_VALUE: function (state) {
+        state.lists = state.lists.filter(todo => !todo.completed)
+      }
+    },
+    actions: {
+      setLists: function (context, list) {
+        context.commit('SET_MESSAGE_VALUE', list)
+      },
+      delLists: function (context, id) {
+        context.commit('DEL_LIST_VALUE', id)
+      },
+      setFilter: function (context, state) {
+        context.commit('SET_FILTER_VALUE', state)
+      },
+      delComlists: function (context) {
+        context.commit('DEL_COM_LIST_VALUE')
+      }
+    },
+    getters: {
+      listGetter: function (state) {
+        return state.lists
+      },
+      filter: function (state) {
+        return state.filter
+      }
+    }
+  })
+
+  var app = new Vue({
+    el: '#app',
+    data: {
+      message: '',
+      states: ['all', 'active', 'completed']
+    },
+    store: store,
+    methods: {
+      clearAllCompleted: function () {
+        store.dispatch('delComlists')
+      },
+      toggleFilter: function(state) {
+        this.setFilter(state)
+      },
+      addTodo: function () {
+        if (!this.message) return
+        id++
+        this.$store.dispatch('setLists', {
+          text: this.message,
+          id: id,
+          completed: false
+        })
+        this.message = ''
+      },
+      deleteTodo: function (e) {
+        // 可以使用 mapActions 函数
+        // ...mapActions(['delLists'])
+        // 调用方式 this.delLists( '参数' )
+        // 参数可以是对象Object 或者其他类型，下面的参数就是要传入删除的 id
+        this.$store.dispatch('delLists', parseInt(e.target.getAttribute('data-id')))
+      },
+      ...Vuex.mapActions([
+        'setFilter'
+      ])
+    },
+    computed: {
+      unfinishedTodoLength: function() {
+        return store.getters.listGetter.filter(todo => !todo.completed).length;
+      },
+      // this.$store 相当于 store
+      // 这里可以用 mapGetters 函数
+      // ...mapGetters(['listGetter'])
+      // 应用的地方就是做 “ 数据的观测 ”
+      // 调用方式就是 this.listGetter
+      listGetters: function () {
+        if(this.filter === 'all') {
+          return store.getters.listGetter
+        }
+        const completed = this.filter === 'completed';
+        return store.getters.listGetter.filter(todo => completed === todo.completed)
+      },
+      // 这里使用了 ES6的扩展
+      ...Vuex.mapGetters([
+        'filter'
+      ])
+    }
+  })
+
+</script>
+</body>
+</html>
